@@ -1,4 +1,4 @@
-~~~markdown
+
 # Requisitos del Analizador de Secuencias FASTA
 
 ## Descripción del problema
@@ -69,5 +69,3 @@ encabezado	longitud	contenido_gc
 seq1 Homo sapiens BRCA1	78	0.4872
 seq3 Homo sapiens TP53	130	0.5538
 ```
-
-~~~
