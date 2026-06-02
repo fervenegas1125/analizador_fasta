@@ -1,294 +1,207 @@
-# --------------------------------------------------
-# 1. leer_fasta(ruta)
-# --------------------------------------------------
-
-# ¿Qué recibe?
-# La ruta de un archivo FASTA.
-
-# ¿Qué hace?
-# Lee el encabezado y la secuencia.
-
-# ¿Qué devuelve?
-# El encabezado y la secuencia.
-
-# Pseudocódigo:
-# abrir archivo
-# leer líneas
-# guardar encabezado
-# guardar secuencia
-# devolver encabezado y secuencia
+import argparse
+import sys
 
 
 def leer_fasta(ruta):
-    try:
-        archivo = open(ruta, "r")
+    """
+    Lee un archivo FASTA y extrae todas las secuencias.
 
-    except FileNotFoundError:
-        print("Error: archivo no encontrado")
-        return None, None
+    Args:
+        ruta (str): Ruta del archivo FASTA.
 
+    Returns:
+        list: Lista de tuplas (encabezado, secuencia).
+    """
+    archivo = open(ruta, "r")
     lineas = archivo.readlines()
-
-    encabezado = lineas[0].strip()
-
-    secuencia = ""
-
-    for linea in lineas[1:]:
-        secuencia += linea.strip()
-
     archivo.close()
 
-    return encabezado, secuencia
+    secuencias = []
+    encabezado = None
+    secuencia = ""
 
+    for linea in lineas:
+        linea = linea.strip()
+        if linea.startswith(">"):
+            if encabezado is not None:
+                secuencias.append((encabezado, secuencia))
+            encabezado = linea
+            secuencia = ""
+        else:
+            secuencia += linea
 
-# encabezado, secuencia = leer_fasta("prueba.fasta")
+    if encabezado is not None:
+        secuencias.append((encabezado, secuencia))
 
-# print(encabezado)
-# print(secuencia)
-
-
-# --------------------------------------------------
-# 2. calcular_gc(secuencia)
-# --------------------------------------------------
-
-# ¿Qué recibe?
-# Una secuencia de ADN.
-
-# ¿Qué hace?
-# Cuenta las bases G y C.
-
-# ¿Qué devuelve?
-# El porcentaje GC.
-
-# Pseudocódigo:
-# contar G
-# contar C
-# sumarlas
-# dividir entre la longitud total
+    return secuencias
 
 
 def calcular_gc(secuencia):
+    """
+    Calcula el contenido GC de una secuencia de ADN.
+
+    Args:
+        secuencia (str): Secuencia de ADN.
+
+    Returns:
+        float: Proporción de bases G y C entre 0 y 1.
+    """
+    secuencia = secuencia.upper()
     g = secuencia.count("G")
-
     c = secuencia.count("C")
-
     gc = g + c
 
-    porcentaje = gc / len(secuencia)
+    if len(secuencia) == 0:
+        return 0.0
 
+    porcentaje = gc / len(secuencia)
     return porcentaje
 
 
-# resultado = calcular_gc("ATGCGC")
+def calcular_estadisticas(secuencias):
+    """
+    Calcula estadísticas para todas las secuencias.
 
-# print(resultado)
+    Args:
+        secuencias (list): Lista de tuplas (encabezado, secuencia).
 
+    Returns:
+        list: Lista de diccionarios con estadísticas de cada secuencia.
+    """
+    estadisticas = []
 
-# --------------------------------------------------
-# 3. calcular_estadisticas(encabezado, secuencia)
-# --------------------------------------------------
-
-# ¿Qué recibe?
-# El encabezado y la secuencia.
-
-# ¿Qué hace?
-# Calcula estadísticas de la secuencia.
-
-# ¿Qué devuelve?
-# Un diccionario con estadísticas.
-
-# Pseudocódigo:
-# calcular longitud
-# calcular GC
-# guardar datos en diccionario
-# devolver diccionario
-
-
-def calcular_estadisticas(encabezado, secuencia):
-    longitud = len(secuencia)
-
-    gc = calcular_gc(secuencia)
-
-    estadisticas = {"encabezado": encabezado, "longitud": longitud, "gc": gc}
+    for encabezado, secuencia in secuencias:
+        longitud = len(secuencia)
+        gc = calcular_gc(secuencia)
+        stats = {"encabezado": encabezado, "longitud": longitud, "contenido_gc": gc}
+        estadisticas.append(stats)
 
     return estadisticas
 
 
-# stats = calcular_estadisticas(">seq1", "ATGCGC")
+def pasa_filtros(stats, min_len, max_len, min_gc, max_gc):
+    """
+    Verifica si una secuencia cumple todos los filtros.
 
-# print(stats)
+    Args:
+        stats (dict): Diccionario con estadísticas de la secuencia.
+        min_len (int): Longitud mínima permitida.
+        max_len (int): Longitud máxima permitida.
+        min_gc (float): Contenido GC mínimo permitido.
+        max_gc (float): Contenido GC máximo permitido.
 
-
-# --------------------------------------------------
-# 4. pasa_filtros(stats, minimo_longitud)
-# --------------------------------------------------
-
-# ¿Qué recibe?
-# Estadísticas y una longitud mínima.
-
-# ¿Qué hace?
-# Verifica si la secuencia cumple el filtro.
-
-# ¿Qué devuelve?
-# True o False.
-
-# Pseudocódigo:
-# revisar longitud
-# si cumple devolver True
-# si no cumple devolver False
-
-
-def pasa_filtros(stats, min_len, min_gc, max_gc):
+    Returns:
+        bool: True si cumple todos los filtros, False en caso contrario.
+    """
     if stats["longitud"] < min_len:
         return False
 
-    if stats["gc"] < min_gc:
+    if stats["longitud"] > max_len:
         return False
 
-    if stats["gc"] > max_gc:
+    if stats["contenido_gc"] < min_gc:
+        return False
+
+    if stats["contenido_gc"] > max_gc:
         return False
 
     return True
 
 
-# stats = {"encabezado": ">seq1", "longitud": 6, "gc": 0.66}
+def escribir_resultados(estadisticas_filtradas, ruta):
+    """
+    Escribe los resultados filtrados en un archivo TSV.
 
-# resultado = pasa_filtros(stats, 5)
+    Args:
+        estadisticas_filtradas (list): Lista de diccionarios con estadísticas filtradas.
+        ruta (str): Ruta del archivo de salida TSV.
 
-# print(resultado)
-
-
-# --------------------------------------------------
-# 5. escribir_resultados(stats, ruta)
-# --------------------------------------------------
-
-# ¿Qué recibe?
-# Estadísticas y una ruta de salida.
-
-# ¿Qué hace?
-# Guarda resultados en un archivo.
-
-# ¿Qué devuelve?
-# Nada.
-
-# Pseudocódigo:
-# abrir archivo
-# escribir encabezado
-# escribir longitud
-# escribir GC
-# cerrar archivo
-
-
-def escribir_resultados(stats, ruta):
+    Returns:
+        None
+    """
     archivo = open(ruta, "w")
 
-    archivo.write("Encabezado: " + stats["encabezado"] + "\n")
+    # Escribir encabezado
+    archivo.write("encabezado\tlongitud\tcontenido_gc\n")
 
-    archivo.write("Longitud: " + str(stats["longitud"]) + "\n")
-
-    archivo.write("GC: " + str(stats["gc"]) + "\n")
+    # Escribir cada secuencia que pasó los filtros
+    for stats in estadisticas_filtradas:
+        encabezado = stats["encabezado"]
+        longitud = stats["longitud"]
+        gc = stats["contenido_gc"]
+        archivo.write(f"{encabezado}\t{longitud}\t{gc:.4f}\n")
 
     archivo.close()
 
 
-# stats = {"encabezado": ">seq1", "longitud": 6, "gc": 0.66}
-
-# escribir_resultados(stats, "resultado.txt")
-
-
-# --------------------------------------------------
-# 6. parsear_argumentos()
-# --------------------------------------------------
-
-# ¿Qué recibe?
-# Nada directamente.
-
-# ¿Qué hace?
-# Lee argumentos desde terminal.
-
-# ¿Qué devuelve?
-# Los argumentos del programa.
-
-# Pseudocódigo:
-# crear parser
-# agregar argumento entrada
-# agregar argumento salida
-# leer argumentos
-# devolver argumentos
-
-import argparse
-
-
 def parsear_argumentos():
-    parser = argparse.ArgumentParser()
+    """
+    Parsea los argumentos de línea de comandos.
 
-    parser.add_argument("-i", "--input", required=True)
+    Returns:
+        argparse.Namespace: Objeto con los argumentos parseados.
+    """
+    parser = argparse.ArgumentParser(description="Analizador de secuencias FASTA")
 
-    parser.add_argument("-o", "--output", required=True)
+    parser.add_argument("-i", "--input", required=True, help="Archivo FASTA de entrada")
 
-    parser.add_argument("--min-len", type=int, default=0)
+    parser.add_argument("-o", "--output", required=True, help="Archivo TSV de salida")
 
-    parser.add_argument("--min-gc", type=float, default=0)
+    parser.add_argument("--min-len", type=int, default=0, help="Longitud mínima")
 
-    parser.add_argument("--max-gc", type=float, default=1)
+    parser.add_argument(
+        "--max-len", type=int, default=float("inf"), help="Longitud máxima"
+    )
+
+    parser.add_argument("--min-gc", type=float, default=0, help="Contenido GC mínimo")
+
+    parser.add_argument("--max-gc", type=float, default=1, help="Contenido GC máximo")
 
     args = parser.parse_args()
 
     return args
 
 
-# args = parsear_argumentos()
-
-# print(args.entrada)
-
-# print(args.salida)
-
-
-# --------------------------------------------------
-# 7. main()
-# --------------------------------------------------
-
-# ¿Qué recibe?
-# Los argumentos del programa.
-
-# ¿Qué hace?
-# Coordina todas las funciones.
-
-# ¿Qué devuelve?
-# Nada.
-
-# Pseudocódigo:
-# leer argumentos
-# leer FASTA
-# calcular estadísticas
-# aplicar filtros
-# escribir resultados
-# mostrar resumen
-
-
 def main():
-    args = parsear_argumentos()
+    """
+    Función principal que coordina el procesamiento de archivos FASTA.
 
-    encabezado, secuencia = leer_fasta(args.input)
+    Lee un archivo FASTA, calcula estadísticas, aplica filtros
+    y guarda los resultados en un archivo TSV.
+    """
+    try:
+        args = parsear_argumentos()
 
-    if encabezado is None:
-        return
+        print(f"Leyendo archivo: {args.input}")
 
-    stats = calcular_estadisticas(encabezado, secuencia)
+        secuencias = leer_fasta(args.input)
 
-    cumple = pasa_filtros(stats, args.min_len, args.min_gc, args.max_gc)
+        if not secuencias:
+            print("Error: El archivo FASTA no contiene secuencias")
+            sys.exit(1)
 
-    if cumple:
-        escribir_resultados(stats, args.output)
+        print(f"  {len(secuencias)} secuencias encontradas")
 
-        print("Secuencia aceptada")
+        estadisticas = calcular_estadisticas(secuencias)
 
-    else:
-        print("Secuencia rechazada")
+        estadisticas_filtradas = []
+
+        for stats in estadisticas:
+            cumple = pasa_filtros(
+                stats, args.min_len, args.max_len, args.min_gc, args.max_gc
+            )
+            if cumple:
+                estadisticas_filtradas.append(stats)
+
+        print(f"  {len(estadisticas_filtradas)} secuencias pasan los filtros")
+
+        escribir_resultados(estadisticas_filtradas, args.output)
+
+        print(f"Resultados escritos en '{args.output}'")
+
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
     main()
-
-# Por accidente hice dos commits con docs, el segundo commit de docs debía ser el
-# último feat, usaré este comentario para ese feat.
