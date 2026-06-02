@@ -1,4 +1,4 @@
-~~~markdown
+
 # Diseño del Analizador de Secuencias FASTA
 
 ## Objetivo del diseño
@@ -261,4 +261,3 @@ flowchart TD
     K -- No --> L[Escribir archivo TSV]
     L --> M([Fin])
 ```
-~~~
